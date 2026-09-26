@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>LUA GAMES</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden;background:#000;position:fixed;touch-action:none;font-family:Arial}
+#top{height:44px;background:#111;color:#fff;display:flex;justify-content:space-between;align-items:center;padding:0 10px;border-bottom:1px solid #2ecc71}
+.h{font-size:10px;font-weight:900;background:#1a1a1a;border:1px solid #2ecc71;padding:5px 10px;border-radius:20px}
+#hpbar{position:absolute;top:48px;left:10px;width:120px;height:6px;background:#300;border-radius:10px;overflow:hidden;z-index:5}
+#hpf{height:100%;width:100%;background:#2ecc71}
+#wrap{position:relative;width:100%;height:calc(100% - 44px);background:#0f1f12;overflow:hidden}
+canvas{position:absolute;left:0;top:0;width:100%;height:100%}
+#joy{position:absolute;left:14px;bottom:14px;width:88px;height:88px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);z-index:6}
+#stick{position:absolute;left:26px;top:26px;width:36px;height:36px;border-radius:50%;background:#2ecc71;box-shadow:0 0 10px #2ecc71}
+#shoot{position:absolute;right:16px;bottom:70px;width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,0.85);border:2px solid #2ecc71;color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;z-index:6}
+#flash{position:absolute;inset:0;background:rgba(255,0,0,0.3);display:none;z-index:7;pointer-events:none}
+#splash{position:fixed;inset:0;background:radial-gradient(#0a1a0f,#000);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff}
+#loadTrack{width:180px;height:4px;background:#111;border-radius:10px;overflow:hidden;margin-top:18px;border:1px solid #1a3a22}
+#loadFill{height:100%;width:0%;background:linear-gradient(90deg,#2ecc71,#f1c40f);transition:width 0.1s}
+#menu{position:absolute;inset:0;background:rgba(0,0,0,0.96);z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px;text-align:center}
+.btn{width:100%;max-width:300px;padding:14px;border:none;border-radius:30px;font-weight:900;font-size:13px;margin-top:10px}
+.btnG{background:#2ecc71;color:#000}.btnD{background:#222;color:#fff;border:1px solid #333}
+</style>
+</head>
+<body>
+<!-- 2 SECONDS LUA GAMES SPLASH -->
+<div id="splash">
+<h1 style="color:#2ecc71;font-size:38px;font-weight:900;letter-spacing:6px;text-shadow:0 0 20px #2ecc71">LUA GAMES</h1>
+<p style="color:#444;font-size:8px;margin-top:8px;letter-spacing:4px">PRO SHOOTER</p>
+<div id="loadTrack"><div id="loadFill"></div></div>
+<p id="loadTxt" style="color:#555;font-size:7px;margin-top:8px;letter-spacing:2px">LOADING...</p>
+</div>
+
+<div id="top"><div style="display:flex;gap:6px"><span class="h">💰 <span id="coins">800</span></span><span class="h">🧟 <span id="kill">0</span></span><span class="h">LVL <span id="lvl">1</span></span></div><div class="h">❤️ <span id="hp">100</span></div></div>
+<div id="hpbar"><div id="hpf"></div></div><div id="flash"></div>
+<div id="wrap">
+<canvas id="c"></canvas>
+<div id="joy"><div id="stick"></div></div>
+<div id="shoot" onclick="doShoot()">🔫</div>
+<div id="menu">
+<h1 style="color:#2ecc71;font-size:30px;letter-spacing:4px">LUA GAMES</h1>
+<p style="color:#666;font-size:8px;margin:6px 0 14px;letter-spacing:2px">PROFESSIONAL EDITION</p>
+<div style="background:#111;border:1px solid #222;border-radius:12px;padding:12px;width:100%;max-width:300px;margin:10px 0">
+<p style="font-size:10px;font-weight:800">HOW TO PLAY</p>
+<p style="font-size:8px;color:#888;margin-top:6px;line-height:1.5">Joystick to move • Tap zombie to shoot<br>Zombie chases & bites - Health 100→0<br>Boss every 5 levels • Health packs ❤️</p>
+</div>
+<button class="btn btnG" onclick="startGame()">▶ PLAY NOW</button>
+</div>
+</div>
+<script>
+// SPLASH 2 SECONDS LOADING
+var fill=document.getElementById('loadFill'),txt=document.getElementById('loadTxt'),splash=document.getElementById('splash'),menu=document.getElementById('menu');
+var p=0;
+var iv=setInterval(function(){
+p+=Math.random()*18;
+if(p>=100){p=100;clearInterval(iv);txt.innerText='READY!';setTimeout(function(){
+splash.style.display='none';
+menu.style.display='flex';
+},300);
+}
+fill.style.width=p+'%';
+txt.innerText=p<30?'LOADING LUA GAMES...':p<70?'LOADING ZOMBIES...':'LOADING GUNS...';
+},80);
+
+// GAME CODE
+var cv=document.getElementById('c'), cx=cv.getContext('2d');
+function resize(){cv.width=cv.clientWidth;cv.height=cv.clientHeight;}resize();window.onresize=resize;
+function W(){return cv.width}function H(){return cv.height}
+var pl={x:0,y:0,a:0,hp:100,mh:100}, zombies=[], bullets=[], blood=[], packs=[], killed=0, level=1, coins=800, cd=0, keys={x:0,y:0}, boss=false;
+
+function spawn(){
+zombies=[];bullets=[];blood=[];packs=[];killed=0;boss=(level%5==0);
+pl.x=W()/2;pl.y=H()/2;
+var need=boss?1:5+level;
+for(var i=0;i<need;i++){var x,y;do{x=30+Math.random()*(W()-60);y=70+Math.random()*(H()-140);}while(Math.hypot(x-pl.x,y-pl.y)<110);zombies.push({x:x,y:y,sp:0.9+Math.random()*0.7,hp:boss?350:100,isB:boss,cd:0});}
+for(var j=0;j<3;j++){packs.push({x:30+Math.random()*(W()-60),y:70+Math.random()*(H()-140),on:1});}
+document.getElementById('lvl').innerText=level;
+}
+
+function draw(){
+cx.fillStyle='#0f1f12';cx.fillRect(0,0,W(),H());
+cx.fillStyle='rgba(255,255,255,0.02)';for(var i=0;i<W();i+=40)cx.fillRect(i,0,1,H());for(var j=0;j<H();j+=40)cx.fillRect(0,j,W(),1);
+packs.forEach(function(p){if(!p.on)return;cx.fillStyle='#ff2222';cx.beginPath();cx.arc(p.x,p.y,8,0,6.28);cx.fill();cx.fillStyle='#fff';cx.font='bold 10px Arial';cx.fillText('+',p.x-3,p.y+3);if(Math.hypot(pl.x-p.x,pl.y-p.y)<24){p.on=0;pl.hp=Math.min(pl.mh,pl.hp+45);coins+=20;document.getElementById('coins').innerText=coins;}});
+cx.fillStyle='rgba(100,0,0,0.4)';blood.forEach(function(b){cx.beginPath();cx.arc(b.x,b.y,b.s,0,6.28);cx.fill();});
+cx.save();cx.translate(pl.x,pl.y);cx.rotate(pl.a+1.57);
+cx.fillStyle='#2ecc71';cx.fillRect(-11,-13,22,26);cx.fillStyle='#ffdbac';cx.beginPath();cx.arc(0,-17,8,0,6.28);cx.fill();
+cx.fillStyle='#444';cx.fillRect(9,-2,22,5);
+if(cd>0.1){cx.fillStyle='#ffeb3b';cx.beginPath();cx.arc(31,0,5,0,6.28);cx.fill();}
+cx.restore();
+zombies.forEach(function(z){
+cx.save();cx.translate(z.x,z.y);if(z.isB)cx.scale(1.6,1.6);
+cx.fillStyle=z.isB?'#cc0000':'#4a6a1a';cx.fillRect(-9,-11,18,22);cx.fillStyle='#1a2a0a';cx.beginPath();cx.arc(0,-15,7,0,6.28);cx.fill();
+cx.restore();
+if(z.hp<(z.isB?350:100)){cx.fillStyle='#000';cx.fillRect(z.x-14,z.y-30,28,4);cx.fillStyle=z.isB?'#f00':'#fa0';cx.fillRect(z.x-14,z.y-30,28*(z.hp/(z.isB?350:100)),4);}
+});
+cx.fillStyle='#ffeb3b';bullets.forEach(function(b){cx.beginPath();cx.arc(b.x,b.y,4,0,6.28);cx.fill();});
+}
+
+function loop(){
+if(menu.style.display==='none' && splash.style.display==='none'){
+var sp=3.5;
+if(keys.x||keys.y){var nx=pl.x+keys.x*sp, ny=pl.y+keys.y*sp; if(nx>20&&nx<W()-20)pl.x=nx; if(ny>60&&ny<H()-20)pl.y=ny;}
+if(cd>0)cd-=0.016;
+zombies.forEach(function(z){
+var a=Math.atan2(pl.y-z.y,pl.x-z.x);
+var s=z.isB?z.sp*0.7:z.sp;
+z.x+=Math.cos(a)*s;z.y+=Math.sin(a)*s;
+var d=Math.hypot(pl.x-z.x,pl.y-z.y);
+if(d<(z.isB?38:26)){if(z.cd<=0){pl.hp-=z.isB?12:6;z.cd=z.isB?55:40;var f=document.getElementById('flash');f.style.display='block';setTimeout(function(){f.style.display='none'},80);if(pl.hp<=0){alert('YOU WERE EATEN! Health 100→0');level=1;coins=800;startGame();}} }
+if(z.cd>0)z.cd--;
+});
+bullets.forEach(function(b){b.x+=Math.cos(b.a)*b.s; b.y+=Math.sin(b.a)*b.s;});
+for(var i=bullets.length-1;i>=0;i--){
+for(var j=zombies.length-1;j>=0;j--){
+if(Math.hypot(bullets[i].x-zombies[j].x,bullets[i].y-zombies[j].y)<(zombies[j].isB?32:20)){
+zombies[j].hp-=70;
+blood.push({x:zombies[j].x,y:zombies[j].y,s:zombies[j].isB?10:6});
+if(zombies[j].hp<=0){zombies.splice(j,1);killed++;coins+=zombies[j].isB?200:40;document.getElementById('coins').innerText=coins;}
+bullets.splice(i,1);break;
+}
+}
+if(bullets[i]&& (bullets[i].x<0||bullets[i].x>W()||bullets[i].y<0||bullets[i].y>H()))bullets.splice(i,1);
+}
+draw();
+document.getElementById('hp').innerText=Math.max(0,Math.floor(pl.hp));
+document.getElementById('kill').innerText=killed;
+document.getElementById('hpf').style.width=(pl.hp/pl.mh*100)+'%';
+document.getElementById('hpf').style.background=pl.hp<30?'#ff0000':pl.hp<60?'#ffaa00':'#2ecc71';
+if(killed>=(boss?1:5+level)){level++;coins+=boss?300:100;document.getElementById('coins').innerText=coins;alert(boss?'👹 BOSS DEFEATED! +300':'Level cleared! +100');spawn();}
+}
+requestAnimationFrame(loop);
+}loop();
+
+var joy=document.getElementById('joy'),stick=document.getElementById('stick'),drag=false;
+joy.addEventListener('touchstart',function(){drag=true;});
+joy.addEventListener('mousedown',function(){drag=true;});
+window.addEventListener('touchmove',function(e){
+if(!drag)return;
+var r=joy.getBoundingClientRect(),cxp=r.left+r.width/2,cyp=r.top+r.height/2;
+var t=e.touches[0];var dx=t.clientX-cxp,dy=t.clientY-cyp,dist=Math.min(32,Math.hypot(dx,dy)),ang=Math.atan2(dy,dx);
+stick.style.left=(26+Math.cos(ang)*dist)+'px';stick.style.top=(26+Math.sin(ang)*dist)+'px';
+keys.x=Math.cos(ang)*(dist/32);keys.y=Math.sin(ang)*(dist/32);
+if(dist>8)pl.a=ang;
+},{passive:false});
+window.addEventListener('mousemove',function(e){
+if(!drag)return;
+var r=joy.getBoundingClientRect(),cxp=r.left+r.width/2,cyp=r.top+r.height/2;
+var dx=e.clientX-cxp,dy=e.clientY-cyp,dist=Math.min(32,Math.hypot(dx,dy)),ang=Math.atan2(dy,dx);
+stick.style.left=(26+Math.cos(ang)*dist)+'px';stick.style.top=(26+Math.sin(ang)*dist)+'px';
+keys.x=Math.cos(ang)*(dist/32);keys.y=Math.sin(ang)*(dist/32);
+if(dist>8)pl.a=ang;
+});
+window.addEventListener('touchend',function(){drag=false;stick.style.left='26px';stick.style.top='26px';keys.x=0;keys.y=0;});
+window.addEventListener('mouseup',function(){drag=false;stick.style.left='26px';stick.style.top='26px';keys.x=0;keys.y=0;});
+cv.addEventListener('touchstart',function(e){
+var r=cv.getBoundingClientRect();var t=e.touches[0];
+doShoot(t.clientX-r.left,t.clientY-r.top);
+},{passive:false});
+function doShoot(tx,ty){
+if(cd>0)return;
+var a=pl.a;if(tx!==undefined)a=Math.atan2(ty-pl.y,tx-pl.x);
+pl.a=a;bullets.push({x:pl.x+24*Math.cos(a),y:pl.y+24*Math.sin(a),a:a,s:12});cd=0.18;
+}
+function startGame(){
+menu.style.display='none';
+pl.hp=100;pl.mh=100;
+spawn();
+}
+</script>
+</body>
+</html>
