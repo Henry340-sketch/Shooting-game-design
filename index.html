@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>LUA GAMES - PRO SHOOTER</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;height:100%;overflow:hidden;position:fixed;inset:0;background:#000;touch-action:none;font-family:system-ui}
+#app{width:100vw;height:100dvh;position:fixed;inset:0;background:radial-gradient(#0e1a0e,#000);display:flex;flex-direction:column}
+#top{height:46px;background:#0a0a0a;display:flex;justify-content:space-between;align-items:center;padding:0 10px;border-bottom:1px solid #1a3a22;flex-shrink:0}
+.hud{font-size:10px;font-weight:800;color:#fff;background:#151515;border:1px solid #234d2f;padding:5px 10px;border-radius:20px;display:flex;gap:4px;align-items:center}
+#hpbar{position:absolute;top:50px;left:10px;width:140px;height:8px;background:#2a0a0a;border-radius:10px;overflow:hidden;z-index:5;border:1px solid #4a1a1a}
+#hpfill{height:100%;width:100%;background:linear-gradient(90deg,#2ecc71,#27ae60);transition:width.25s}
+#wrap{flex:1;position:relative;overflow:hidden;background:#0a1510}
+canvas{position:absolute;inset:0;width:100%;height:100%}
+#mini{position:absolute;top:8px;right:8px;width:84px;height:84px;border-radius:50%;border:2px solid #2ecc71;background:rgba(0,0,0,0.8);z-index:5}
+#ctrl{position:absolute;bottom:0;left:0;width:100%;height:125px;display:flex;justify-content:space-between;align-items:flex-end;padding:10px 14px;padding-bottom:max(10px,env(safe-area-inset-bottom));z-index:6;pointer-events:none}
+.joy{pointer-events:auto;width:90px;height:90px;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);position:relative;backdrop-filter:blur(4px)}
+.stick{width:36px;height:36px;border-radius:50%;background:#2ecc71;position:absolute;left:27px;top:27px;box-shadow:0 0 14px #2ecc71}
+.btn{pointer-events:auto;width:52px;height:52px;border-radius:50%;background:rgba(0,0,0,0.85);border:2px solid #2ecc71;color:#fff;display:flex;align-items:center;justify-content:center;font-size:17px;margin:4px}
+#flash{position:absolute;inset:0;background:rgba(255,0,0,0.32);display:none;z-index:7;pointer-events:none}
+#over{position:absolute;inset:0;background:rgba(0,0,0,0.94);z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px;color:#fff;overflow-y:auto;text-align:center}
+.card{width:100%;max-width:340px;background:#111;border:1px solid #222;border-radius:16px;padding:14px;margin:7px 0}
+.b{width:100%;border:none;padding:13px;border-radius:30px;font-weight:900;font-size:12px;margin-top:8px;cursor:pointer}
+.bg{background:#2ecc71;color:#000}.bd{background:#1e1e1e;color:#fff;border:1px solid #333}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;max-height:26vh;overflow-y:auto}
+.it{border:2px solid #222;border-radius:12px;background:#0a0a0a;padding:8px;display:flex;flex-direction:column;align-items:center;cursor:pointer}
+.it.on{border-color:#2ecc71;box-shadow:0 0 10px rgba(46,204,113,0.4)}
+#sp{position:fixed;inset:0;background:#000;z-index:100;display:flex;align-items:center;justify-content:center}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="sp"><div style="text-align:center"><h1 style="color:#2ecc71;font-size:38px;font-weight:900;letter-spacing:6px">LUA GAMES</h1><p style="color:#444;font-size:8px;margin-top:8px;letter-spacing:4px">PRO SHOOTER</p><div style="width:160px;height:2px;background:#111;margin:18px auto;border-radius:10px;overflow:hidden"><div id="ld" style="height:100%;width:0%;background:#2ecc71;transition:width.1s"></div></div></div></div>
+<div id="top"><div style="display:flex;gap:5px"><span class="hud">💰 <span id="coins">0</span></span><span class="hud">🧟 <span id="kill">0</span>/<span id="need">5</span></span><span class="hud">LVL <span id="lv">1</span></span><span class="hud" id="boss" style="display:none;background:#3a0a0a;border-color:#ff0000">👹 BOSS</span></div><div class="hud">❤️ <span id="hp">100</span></div></div>
+<div id="hpbar"><div id="hpfill"></div></div><div id="flash"></div>
+<div id="wrap"><canvas id="c"></canvas><canvas id="m"></canvas><div id="ctrl"><div class="joy" id="joy"><div class="stick" id="stick"></div></div><div style="pointer-events:auto;display:flex;flex-direction:column"><button class="btn" onclick="shoot()">🔫</button><button class="btn" style="width:44px;height:44px;border-color:#3498db;font-size:13px" ontouchstart="sprint=true" ontouchend="sprint=false">🏃</button></div></div><div id="over"></div></div>
+</div>
+<script>
+const cv=document.getElementById('c'),cx=cv.getContext('2d');
+const mv=document.getElementById('m'),mx=mv.getContext('2d');
+function rs(){cv.width=cv.clientWidth*devicePixelRatio;cv.height=cv.clientHeight*devicePixelRatio;cx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);mv.width=84*2;mv.height=84*2;mx.setTransform(2,0,0,2,0,0);}addEventListener('resize',rs);rs();
+let W=()=>cv.clientWidth,H=()=>cv.clientHeight;
+let coins=parseInt(localStorage.getItem('lc')||'800'),lvl=parseInt(localStorage.getItem('ll')||'1');
+let uA=JSON.parse(localStorage.getItem('la')||'[0,1]'),uG=JSON.parse(localStorage.getItem('lg')||'[0]');
+let pl={x:0,y:0,a:0,hp:100,mh:100,av:0,g:0},z=[],b=[],blood=[],packs=[],killed=0,need=5,state='menu',key={x:0,y:0},cd=0,sprint=false,boss=false;
+const AV=[
+{name:'RECRUIT',p:0,hp:100,sp:3.4,c:'#2ecc71'},{name:'COMMANDO',p:0,hp:100,sp:3.6,c:'#3498db'},{name:'SWAT',p:150,hp:125,sp:3.4,c:'#1a3a5a'},{name:'GHOST',p:350,hp:110,sp:4.1,c:'#888'},{name:'MARINE',p:700,hp:145,sp:3.5,c:'#d35400'},{name:'SNIPER',p:1100,hp:100,sp:3.7,c:'#7f8c8d'},{name:'HEAVY',p:1600,hp:185,sp:3.1,c:'#5d4037'},{name:'CYBORG',p:2600,hp:155,sp:4.2,c:'#00bcd4'},{name:'TITAN',p:4000,hp:210,sp:3.6,c:'#f1c40f'},{name:'LEGEND',p:6500,hp:260,sp:4.4,c:'#ffd700'},
+];
+const GN=[
+{name:'GLOCK',d:60,f:0.26,p:0,i:'🔫'},{name:'SHOTGUN',d:110,f:0.6,p:200,i:'💣'},{name:'M4A1',d:72,f:0.13,p:400,i:'🔧'},{name:'AK-47',d:88,f:0.10,p:650,i:'🔥'},
+];
+function spawn(){
+z=[];b=[];blood=[];packs=[];killed=0;boss=(lvl%5===0);need=boss?1:5+Math.floor(lvl*0.7);
+pl.x=W()/2;pl.y=H()/2;
+for(let i=0;i<need;i++){let x,y;do{x=40+Math.random()*(W()-80);y=80+Math.random()*(H()-180);}while(Math.hypot(x-pl.x,y-pl.y)<120);z.push({x,y,sp:0.7+Math.random()*0.6+lvl*0.07,hp:boss?420:100,isB:boss,an:Math.random()*10,cd:0});}
+for(let i=0;i<3;i++){packs.push({x:50+Math.random()*(W()-100),y:80+Math.random()*(H()-200),on:true});}
+document.getElementById('boss').style.display=boss?'flex':'none';
+document.getElementById('need').innerText=need;
+}
+function draw(){
+cx.fillStyle='#0b1a0f';cx.fillRect(0,0,W(),H());
+// floor pattern
+cx.fillStyle='rgba(255,255,255,0.015)';for(let i=0;i<W();i+=40){cx.fillRect(i,0,1,H());}for(let j=0;j<H();j+=40){cx.fillRect(0,j,W(),1);}
+packs.forEach(p=>{if(!p.on)return;cx.fillStyle='#ff2e2e';cx.shadowColor='#ff0000';cx.shadowBlur=12;cx.beginPath();cx.arc(p.x,p.y,9,0,Math.PI*2);cx.fill();cx.shadowBlur=0;cx.fillStyle='#fff';cx.font='bold 10px sans-serif';cx.fillText('+',p.x-3,p.y+3);if(Math.hypot(pl.x-p.x,pl.y-p.y)<26){p.on=false;pl.hp=Math.min(pl.mh,pl.hp+50);coins+=20;}});
+cx.fillStyle='rgba(150,0,0,0.4)';blood.forEach(o=>{cx.beginPath();cx.arc(o.x,o.y,o.s,0,Math.PI*2);cx.fill();});
+// soldier
+cx.save();cx.translate(pl.x,pl.y);cx.rotate(pl.a+Math.PI/2);
+let av=AV[pl.av];cx.fillStyle=av.c;cx.fillRect(-12,-14,24,28);cx.fillStyle='#ffdbac';cx.beginPath();cx.arc(0,-18,9,0,Math.PI*2);cx.fill();
+let g=GN[pl.g];cx.fillStyle=g.name==='SHOTGUN'?'#8d6e63':g.name==='AK-47'?'#3e2723':'#444';cx.fillRect(10,-3,26,6);
+if(cd>0.08){cx.fillStyle='#ffeb3b';cx.shadowColor='#ffeb3b';cx.shadowBlur=12;cx.beginPath();cx.arc(36,0,6
