@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>LUA GAMES - 10 LEVELS</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}html,body{width:100%;height:100%;overflow:hidden;background:#000;position:fixed;touch-action:none;font-family:Arial}
+#top{height:44px;background:#0e0e0e;color:#fff;display:flex;justify-content:space-between;align-items:center;padding:0 10px;border-bottom:1px solid #2ecc71;z-index:10;position:relative}
+.h{font-size:10px;font-weight:900;background:#1a1a1a;border:1px solid #2ecc71;padding:5px 10px;border-radius:20px}
+#hpbar{position:absolute;top:48px;left:10px;width:130px;height:7px;background:#300;border-radius:10px;overflow:hidden;z-index:5;border:1px solid #500}
+#hpf{height:100%;width:100%;background:#2ecc71;transition:width 0.2s}
+#wrap{position:relative;width:100%;height:calc(100% - 44px);background:#0f1f12;overflow:hidden}
+canvas{position:absolute;left:0;top:0;width:100%;height:100%}
+#joy{position:absolute;left:14px;bottom:16px;width:88px;height:88px;border-radius:50%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);z-index:6}
+#stick{position:absolute;left:26px;top:26px;width:36px;height:36px;border-radius:50%;background:#2ecc71;box-shadow:0 0 12px #2ecc71}
+#shoot{position:absolute;right:16px;bottom:74px;width:58px;height:58px;border-radius:50%;background:rgba(0,0,0,0.9);border:2px solid #2ecc71;color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;z-index:6}
+#flash{position:absolute;inset:0;background:rgba(255,0,0,0.32);display:none;z-index:7;pointer-events:none}
+#splash{position:fixed;inset:0;background:radial-gradient(#0a1a0f,#000);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff}
+#track{width:190px;height:5px;background:#111;border-radius:10px;overflow:hidden;margin-top:18px;border:1px solid #1a3a22}
+#fill{height:100%;width:0%;background:linear-gradient(90deg,#2ecc71,#f1c40f)}
+#menu,#levelUp,#gameOverScreen,#winScreen{position:absolute;inset:0;background:rgba(0,0,0,0.95);z-index:20;display:none;flex-direction:column;align-items:center;justify-content:center;color:#fff;padding:20px;text-align:center}
+.btn{width:100%;max-width:300px;padding:14px;border:none;border-radius:30px;font-weight:900;font-size:13px;margin-top:10px;cursor:pointer}
+.btnG{background:#2ecc71;color:#000}.btnD{background:#222;color:#fff;border:1px solid #333}
+</style>
+</head>
+<body>
+<div id="splash">
+<h1 style="color:#2ecc71;font-size:40px;font-weight:900;letter-spacing:6px;text-shadow:0 0 20px #2ecc71">LUA GAMES</h1>
+<p style="color:#333;font-size:8px;margin-top:8px;letter-spacing:4px">PRO SHOOTER - 10 LEVELS</p>
+<div id="track"><div id="fill"></div></div>
+<p id="ltxt" style="color:#555;font-size:8px;margin-top:10px">LOADING...</p>
+</div>
+
+<div id="top"><div style="display:flex;gap:5px"><span class="h">💰 <span id="coins">800</span></span><span class="h">🧟 <span id="kill">0</span>/<span id="need">5</span></span><span class="h">LVL <span id="lvl">1</span>/10</span><span class="h" id="bossTag" style="display:none;background:#3a0a0a;border-color:#f00">👹 BOSS</span></div><div class="h">❤️ <span id="hp">100</span></div></div>
+<div id="hpbar"><div id="hpf"></div></div><div id="flash"></div>
+
+<div id="wrap">
+<canvas id="c"></canvas>
+<div id="joy"><div id="stick"></div></div>
+<div id="shoot" ontouchstart="doShoot()" onmousedown="doShoot()">🔫</div>
+
+<div id="menu">
+<h1 style="color:#2ecc71;font-size:30px;letter-spacing:5px">LUA GAMES</h1>
+<p style="color:#555;font-size:8px;margin:6px 0 14px;letter-spacing:2px">10 LEVELS - BOSS EVERY 5</p>
+<div style="background:#111;border:1px solid #222;border-radius:12px;padding:12px;width:100%;max-width:300px">
+<p style="font-size:10px;font-weight:800">CONTROLS</p>
+<p style="font-size:8px;color:#888;margin-top:6px;line-height:1.6">🕹️ Joystick to move<br>👆 Tap zombie or 🔫 to shoot<br>❤️ Red circles = health + coins<br>Boss at Level 5 & 10</p>
+</div>
+<button class="btn btnG" onclick="startGame()">▶ PLAY LEVEL <span id="menuLvl">1</span></button>
+</div>
+
+<div id="levelUp">
+<h2 style="color:#2ecc71;font-size:26px">LEVEL <span id="luLvl">1</span> CLEARED!</h2>
+<p style="font-size:30px;margin:10px 0">⭐⭐⭐</p>
+<p style="color:#f1c40f;font-size:12px">+<span id="luCoins">100</span> coins</p>
+<p style="color:#888;font-size:9px;margin-top:6px">Killed <span id="luKill">0</span> zombies</p>
+<button class="btn btnG" onclick="nextLevel()">NEXT LEVEL →</button>
+</div>
+
+<div id="gameOverScreen">
+<h2 style="color:#ff0000;font-size:28px">YOU WERE EATEN!</h2>
+<p style="font-size:11px;margin-top:8px;color:#aaa">Health 100 → 0</p>
+<p style="font-size:10px;margin-top:4px">Reached Level <span id="overLvl">1</span> • Killed <span id="overKill">0</span></p>
+<button class="btn btnG" onclick="restartGame()">RETRY</button>
+<button class="btn btnD" onclick="showMenu()">MENU</button>
+</div>
+
+<div id="winScreen">
+<h2 style="color:#f1c40f;font-size:26px">🏆 YOU WIN!</h2>
+<p style="font-size:12px;margin-top:8px">Completed all 10 levels!</p>
+<p style="font-size:10px;color:#2ecc71;margin-top:6px">Total coins: <span id="winCoins">0</span></p>
+<button class="btn btnG" onclick="restartGame()">PLAY AGAIN</button>
+</div>
+</div>
+
+<script>
+// SPLASH 2 SECONDS - FIXED
+var fill=document.getElementById('fill'),ltxt=document.getElementById('ltxt'),splash=document.getElementById('splash'),menu=document.getElementById('menu');
+var p=0;var iv=setInterval(function(){
+p+=Math.random()*22;
+if(p>=100){p=100;clearInterval(iv);ltxt.innerText='READY!';setTimeout(function(){splash.style.display='none';menu.style.display='flex';},400);}
+fill.style.width=p+'%';
+ltxt.innerText=p<35?'LOADING LUA GAMES...':p<70?'LOADING ZOMBIES...':'LOADING BOSS...';
+},80);
+
+// GAME - NO HANG BUG
+var cv=document.getElementById('c'),cx=cv.getContext('2d');
+function resize(){cv.width=cv.clientWidth;cv.height=cv.clientHeight;}resize();window.onresize=resize;
+function W(){return cv.width}function H(){return cv.height}
+var pl={x:0,y:0,a:0,hp:100,mh:100}, zombies=[], bullets=[], blood=[], packs=[], killed=0, level=1, coins=800, cd=0, keys={x:0,y:0}, need=5, playing=false;
+
+function spawn(){
+zombies=[];bullets=[];blood=[];packs=[];killed=0;
+var isBoss=(level%5==0);
+need=isBoss?1:4+level;
+pl.x=W()/2;pl.y=H()/2;
+for(var i=0;i<need;i++){
+var x,y,c=0;
+do{x=30+Math.random()*(W()-60);y=70+Math.random()*(H()-140);c++;}while(Math.hypot(x-pl.x,y-pl.y)<120&&c<50);
+zombies.push({x:x,y:y,sp:0.8+Math.random()*0.6+level*0.08,hp:isBoss?400:100,isB:isBoss,cd:0});
+}
+for(var j=0;j<3;j++){packs.push({x:30+Math.random()*(W()-60),y:70+Math.random()*(H()-140),on:1});}
+document.getElementById('lvl').innerText=level;
+document.getElementById('need').innerText=need;
+document.getElementById('bossTag').style.display=isBoss?'flex':'none';
+document.getElementById('menuLvl').innerText=level;
+}
+
+function draw(){
+cx.fillStyle='#0f1f12';cx.fillRect(0,0,W(),H());
+cx.fillStyle='rgba(255,255,255,0.02)';for(var i=0;i<W();i+=40)cx.fillRect(i,0,1,H());for(var j=0;j<H();j+=40)cx.fillRect(0,j,W(),1);
+packs.forEach(function(p){if(!p.on)return;cx.fillStyle='#ff2222';cx.beginPath();cx.arc(p.x,p.y,8,0,6.28);cx.fill();cx.fillStyle='#fff';cx.font='bold 10px Arial';cx.fillText('+',p.x-3,p.y+3);if(Math.hypot(pl.x-p.x,pl.y-p.y)<24){p.on=0;pl.hp=Math.min(pl.mh,pl.hp+50);coins+=25;document.getElementById('coins').innerText=coins;}});
+cx.fillStyle='rgba(120,0,0,0.35)';blood.forEach(function(b){cx.beginPath();cx.arc(b.x,b.y,b.s,0,6.28);cx.fill();});
+cx.save();cx.translate(pl.x,pl.y);cx.rotate(pl.a+1.57);
+cx.fillStyle='#2ecc71';cx.fillRect(-11,-13,22,26);cx.fillStyle='#ffdbac';cx.beginPath();cx.arc(0,-17,8,0,6.28);cx.fill();
+cx.fillStyle='#333';cx.fillRect(9,-2,24,5);
+if(cd>0.1){cx.fillStyle='#ffeb3b';cx.beginPath();cx.arc(33,0,5,0,6.28);cx.fill();}
+cx.restore();
+zombies.forEach(function(z){
+cx.save();cx.translate(z.x,z.y);if(z.isB)cx.scale(1.7,1.7);
+cx.fillStyle=z.isB?'#cc0000':'#4a6a1a';cx.fillRect(-9,-11,18,22);cx.fillStyle='#1a2a0a';cx.beginPath();cx.arc(0,-15,7,0,6.28);cx.fill();
+cx.restore();
+if(z.hp<(z.isB?400:100)){cx.fillStyle='#000';cx.fillRect(z.x-14,z.y-30,28,4);cx.fillStyle=z.isB?'#f00':'#fa0';cx.fillRect(z.x-14,z.y-30,28*(z.hp/(z.isB?400:100)),4);}
+});
+cx.fillStyle='#ffeb3b';bullets.forEach(function(b){cx.beginPath();cx.arc(b.x,b.y,4,0,6.28);cx.fill();});
+}
+
+function loop(){
+requestAnimationFrame(loop);
+if(!playing)return;
+var sp=3.6;
+if(keys.x||keys.y){var nx=pl.x+keys.x*sp, ny=pl.y+keys.y*sp; if(nx>20&&nx<W()-20)pl.x=nx; if(ny>60&&ny<H()-20)pl.y=ny;}
+if(cd>0)cd-=0.016;
+
+// ZOMBIE MOVE - FIXED NO HANG
+for(var zi=0;zi<zombies.length;zi++){
+var z=zombies[zi];
+var a=Math.atan2(pl.y-z.y,pl.x-z.x);
+var s=z.isB?z.sp*0.65:z.sp;
+z.x+=Math.cos(a)*s;z.y+=Math.sin(a)*s;
+var d=Math.hypot(pl.x-z.x,pl.y-z.y);
+if(d<(z.isB?40:28)){
+if(z.cd<=0){pl.hp-=z.isB?14:7;z.cd=z.isB?60:42;var f=document.getElementById('flash');f.style.display='block';setTimeout(function(){f.style.display='none'},90);if(pl.hp<=0){gameOver();return;}}
+}
+if(z.cd>0)z.cd--;
+}
+// BULLETS - FIXED NO HANG (backwards loop + safe splice)
+for(var bi=bullets.length-1;bi>=0;bi--){
+var b=bullets[bi];
+b.x+=Math.cos(b.a)*b.s; b.y+=Math.sin(b.a)*b.s;
+var hit=false;
+for(var zj=zombies.length-1;zj>=0;zj--){
+if(Math.hypot(b.x-zombies[zj].x,b.y-zombies[zj].y)<(zombies[zj].isB?34:22)){
+zombies[zj].hp-=75;
+blood.push({x:zombies[zj].x,y:zombies[zj].y,s:zombies[zj].isB?11:7});
+if(zombies[zj].hp<=0){zombies.splice(zj,1);killed++;coins+=zombies[zj]?40:40;document.getElementById('coins').innerText=coins;}
+hit=true;break;
+}
+}
+if(hit||b.x<0||b.x>W()||b.y<0||b.y>H()){bullets.splice(bi,1);}
+}
+draw();
+document.getElementById('hp').innerText=Math.max(0,Math.floor(pl.hp));
+document.getElementById('kill').innerText=killed;
+document.getElementById('hpf').style.width=(pl.hp/pl.mh*100)+'%';
+document.getElementById('hpf').style.background=pl.hp<30?'#ff0000':pl.hp<60?'#ffaa00':'#2ecc71';
+if(killed>=need){levelComplete();}
+}
+loop();
+
+var joy=document.getElementById('joy'),stick=document.getElementById('stick'),drag=false;
+joy.addEventListener('touchstart',function(){drag=true;});joy.addEventListener('mousedown',function(){drag=true;});
+function moveJoy(eX,eY){
+if(!drag)return;
+var r=joy.getBoundingClientRect(),cxp=r.left+r.width/2,cyp=r.top+r.height/2;
+var dx=eX-cxp,dy=eY-cyp,dist=Math.min(32,Math.hypot(dx,dy)),ang=Math.atan2(dy,dx);
+stick.style.left=(26+Math.cos(ang)*dist)+'px';stick.style.top=(26+Math.sin(ang)*dist)+'px';
+keys.x=Math.cos(ang)*(dist/32);keys.y=Math.sin(ang)*(dist/32);
+if(dist>8)pl.a=ang;
+}
+window.addEventListener('touchmove',function(e){moveJoy(e.touches[0].clientX,e.touches[0].clientY);},{passive:false});
+window.addEventListener('mousemove',function(e){moveJoy(e.clientX,e.clientY);});
+window.addEventListener('touchend',function(){drag=false;stick.style.left='26px';stick.style.top='26px';keys.x=0;keys.y=0;});
+window.addEventListener('mouseup',function(){drag=false;stick.style.left='26px';stick.style.top='26px';keys.x=0;keys.y=0;});
+cv.addEventListener('touchstart',function(e){
+var r=cv.getBoundingClientRect();var t=e.touches[0];var mx=t.clientX-r.left,my=t.clientY-r.top;
+var target=null,md=60;
+for(var i=0;i<zombies.length;i++){var d=Math.hypot(mx-zombies[i].x,my-zombies[i].y);if(d<md){md=d;target=zombies[i];}}
+if(target)doShoot(target.x,target.y);else doShoot(mx,my);
+},{passive:false});
+
+function doShoot(tx,ty){
+if(!playing||cd>0)return;
+var a=pl.a;if(tx!==undefined)a=Math.atan2(ty-pl.y,tx-pl.x);
+pl.a=a;bullets.push({x:pl.x+24*Math.cos(a),y:pl.y+24*Math.sin(a),a:a,s:13});cd=0.18;
+}
+function startGame(){
+document.getElementById('menu').style.display='none';
+document.getElementById('levelUp').style.display='none';
+document.getElementById('gameOverScreen').style.display='none';
+document.getElementById('winScreen').style.display='none';
+pl.hp=100;pl.mh=100;
+playing=true;
+spawn();
+}
+function levelComplete(){
+playing=false;
+if(level>=10){showWin();return;}
+document.getElementById('luLvl').innerText=level;
+document.getElementById('luKill').innerText=killed;
+var bonus=(level%5==0)?300:120;
+document.getElementById('luCoins').innerText=bonus;
+coins+=bonus;document.getElementById('coins').innerText=coins;
+document.getElementById('levelUp').style.display='flex';
+}
+function nextLevel(){
+level++;
+if(level>10){showWin();return;}
+document.getElementById('levelUp').style.display='none';
+startGame();
+}
+function gameOver(){
+playing=false;
+document.getElementById('overLvl').innerText=level;
+document.getElementById('overKill').innerText=killed;
+document.getElementById('gameOverScreen').style.display='flex';
+}
+function showWin(){
+playing=false;
+document.getElementById('winCoins').innerText=coins;
+document.getElementById('winScreen').style.display='flex';
+}
+function restartGame(){level=1;coins=800;document.getElementById('coins').innerText=coins;startGame();}
+function showMenu(){
+document.getElementById('gameOverScreen').style.display='none';
+document.getElementById('levelUp').style.display='none';
+document.getElementById('winScreen').style.display='none';
+document.getElementById('menu').style.display='flex';
+playing=false;
+}
+</script>
+</body>
+</html>
